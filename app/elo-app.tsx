@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
+import { Slider } from "@/components/ui/slider";
 import { Switch } from '@/components/ui/switch';
 import {
   AudioLines,
@@ -50,7 +51,7 @@ import { inviteFragment, parseInvite, post, type Invite } from '@/lib/invite';
 import { randomSecret } from '@/lib/security';
 import type { RemoteAudioTrack } from 'livekit-client';
 
-function Audio({ track, muted }: { track: RemoteAudioTrack; muted: boolean }) {
+function Audio({ track, muted, volume }: { track: RemoteAudioTrack; muted: boolean; volume: number }) {
   const ref = useRef<HTMLAudioElement>(null);
   useEffect(() => {
     const element = ref.current;
@@ -60,9 +61,10 @@ function Audio({ track, muted }: { track: RemoteAudioTrack; muted: boolean }) {
       track.detach(element);
     };
   }, [track]);
+  useEffect(() => { track.setVolume(volume / 100); }, [track, volume]);
   return <audio ref={ref} autoPlay muted={muted} />;
 }
-function ScreenView({ screen }: { screen: Screen }) {
+function ScreenView({ screen, focused, onFocus, volume, onVolume }: { screen: Screen; focused: boolean; onFocus: () => void; volume: number; onVolume: (value: number) => void }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [size, setSize] = useState('');
   useEffect(() => {
@@ -74,7 +76,8 @@ function ScreenView({ screen }: { screen: Screen }) {
     };
   }, [screen.track]);
   return (
-    <section className="screen-view">
+    <section className={`screen-view ${focused ? "focused" : ""}`}>
+      <button className="screen-focus" onClick={onFocus}>{focused ? "Voltar à grade" : "Destacar tela"}</button>
       <video
         ref={ref}
         autoPlay
@@ -85,6 +88,7 @@ function ScreenView({ screen }: { screen: Screen }) {
             setSize(`${ref.current.videoWidth} × ${ref.current.videoHeight}`);
         }}
       />
+      {!screen.local && <Volume label={`Som da live de ${screen.name}`} value={volume} onChange={onVolume} />}
       <div className="screen-caption">
         <span>
           <MonitorUp size={15} />
@@ -104,8 +108,17 @@ function ScreenView({ screen }: { screen: Screen }) {
     </section>
   );
 }
+function Volume({label, value, onChange}: {label: string; value: number; onChange: (value: number) => void}) {
+  return <div className="volume-control"><label>{label} <output>{value}%</output></label><Slider aria-label={label} value={[value]} min={0} max={100} step={1} onValueChange={v => onChange(Array.isArray(v) ? v[0] : v)} /></div>;
+}
 export default function EloApp() {
   const call = useCall();
+  const [volumes, setVolumes] = useState<Record<string, number>>({});
+  const volume = (id: string) => volumes[id] ?? 100;
+  const changeVolume = (id: string, value: number) => setVolumes(v => ({...v, [id]: value}));
+  const [focused, setFocused] = useState<string | null>(null);
+  const [tileSize, setTileSize] = useState(420);
+  const focusExists = call.screens.some(s => s.id === focused);
   const [invite, setInvite] = useState<Invite | null>(null);
   const [admin, setAdmin] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -502,11 +515,11 @@ export default function EloApp() {
                 </button>
               )}
               {call.screens.length > 0 && (
-                <div className="screens-grid">
+                <><div className="screen-toolbar"><span>{call.screens.length} transmissão(ões)</span><Volume label="Tamanho das telas" value={Math.round((tileSize-280)/5)} onChange={v => setTileSize(280+v*5)} /></div><div className={`screens-grid ${focusExists ? "has-focus" : ""}`} style={{gridTemplateColumns: focusExists ? "1fr" : `repeat(auto-fit, minmax(min(100%, ${tileSize}px), 1fr))`}}>
                   {call.screens.map((screen) => (
-                    <ScreenView key={screen.id} screen={screen} />
+                    <ScreenView key={screen.id} screen={screen} focused={screen.id === focused} onFocus={() => setFocused(screen.id === focused ? null : screen.id)} volume={volume("screen:"+screen.owner)} onVolume={v => changeVolume("screen:"+screen.owner,v)} />
                   ))}
-                </div>
+                </div></>
               )}
               <div
                 className={`participants ${call.screens.length ? 'compact' : ''}`}
@@ -540,6 +553,7 @@ export default function EloApp() {
                       <span>{person.name}</span>
                       {person.mic ? <Mic size={16} /> : <MicOff size={16} />}
                     </div>
+                    {!person.local && <Volume label={`Voz de ${person.name}`} value={volume("voice:"+person.id)} onChange={v => changeVolume("voice:"+person.id,v)} />}
                   </article>
                 ))}
               </div>
@@ -570,14 +584,15 @@ export default function EloApp() {
                   aria-pressed={call.deafened}
                   aria-label={
                     call.deafened
-                      ? 'Ouvir conversa'
-                      : 'Silenciar áudio recebido'
+                      ? 'Ouvir vozes'
+                      : 'Silenciar vozes recebidas'
                   }
                   onClick={() => call.setDeafened(!call.deafened)}
                 >
                   {call.deafened ? <HeadphoneOff /> : <Headphones />}
-                  <span>{call.deafened ? 'Som desligado' : 'Áudio'}</span>
+                  <span>{call.deafened ? 'Vozes silenciadas' : 'Vozes'}</span>
                 </button>
+                {call.sharing && <button className={`control ${call.screenAudio ? "" : "off"}`} disabled={!call.hasScreenAudio || call.controlBusy} aria-pressed={!call.screenAudio} onClick={() => void call.toggleScreenAudio()}><MonitorUp /><span>{!call.hasScreenAudio ? "Tela sem áudio" : call.screenAudio ? "Mutar som da live" : "Ativar som da live"}</span></button>}
                 <span className="control-divider" />
                 <button
                   className={`control ${call.sharing ? 'selected' : ''}`}
@@ -610,8 +625,8 @@ export default function EloApp() {
                   </span>
                 </div>
               )}
-              {call.audio.map((track) => (
-                <Audio key={track.sid} track={track} muted={call.deafened} />
+              {call.audio.map(({track, source, owner}) => (
+                <Audio key={track.sid} track={track} muted={source === "voice" && call.deafened} volume={volume(source+":"+owner)} />
               ))}
             </>
           ) : (

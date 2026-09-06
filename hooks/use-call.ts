@@ -26,10 +26,12 @@ export type Person = {
 };
 export type Screen = {
   id: string;
+  owner: string;
   name: string;
   local: boolean;
   track: LocalVideoTrack | RemoteVideoTrack;
 };
+export type ReceivedAudio = { track: RemoteAudioTrack; owner: string; source: 'voice' | 'screen' };
 export type Quality = '1080-60' | '1080-30' | '720-30';
 export function useCall() {
   const roomRef = useRef<Room | null>(null);
@@ -42,7 +44,9 @@ export function useCall() {
   );
   const [people, setPeople] = useState<Person[]>([]);
   const [screens, setScreens] = useState<Screen[]>([]);
-  const [audio, setAudio] = useState<RemoteAudioTrack[]>([]);
+  const [audio, setAudio] = useState<ReceivedAudio[]>([]);
+  const [screenAudio, setScreenAudio] = useState(false);
+  const [hasScreenAudio, setHasScreenAudio] = useState(false);
   const [mic, setMic] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [deafened, setDeafened] = useState(false);
@@ -188,7 +192,7 @@ export function useCall() {
             })),
           );
           const screenTracks: Screen[] = [];
-          const audioTracks: RemoteAudioTrack[] = [];
+          const audioTracks: ReceivedAudio[] = [];
           for (const p of participants)
             for (const pub of p.trackPublications.values()) {
               if (
@@ -198,6 +202,7 @@ export function useCall() {
               )
                 screenTracks.push({
                   id: pub.trackSid,
+                  owner: p.identity,
                   name: p.name ?? 'Amigo',
                   local: p === currentRoom.localParticipant,
                   track: pub.track as LocalVideoTrack | RemoteVideoTrack,
@@ -207,12 +212,15 @@ export function useCall() {
                 pub.kind === Track.Kind.Audio &&
                 pub.track
               )
-                audioTracks.push(pub.track as RemoteAudioTrack);
+                audioTracks.push({track: pub.track as RemoteAudioTrack, owner: p.identity, source: pub.source === Track.Source.ScreenShareAudio ? 'screen' : 'voice'});
             }
           setScreens(screenTracks);
           setAudio(audioTracks);
           setMic(currentRoom.localParticipant.isMicrophoneEnabled);
           setSharing(currentRoom.localParticipant.isScreenShareEnabled);
+          const liveAudio = currentRoom.localParticipant.getTrackPublication(Track.Source.ScreenShareAudio);
+          setHasScreenAudio(!!liveAudio?.track);
+          setScreenAudio(!!liveAudio?.track && !liveAudio.isMuted);
         };
         for (const event of [
           RoomEvent.ParticipantConnected,
@@ -334,6 +342,14 @@ export function useCall() {
       );
       await refreshDevices();
     });
+  const toggleScreenAudio = () => action(async (room) => {
+    const track = room.localParticipant.getTrackPublication(Track.Source.ScreenShareAudio)?.track;
+    if (track) {
+      if (track.isMuted) await track.unmute();
+      else await track.mute();
+      setScreenAudio(!track.isMuted);
+    }
+  });
   const toggleScreen = (quality: Quality) =>
     action(async (room) => {
       if (room.localParticipant.isScreenShareEnabled) {
@@ -392,6 +408,9 @@ export function useCall() {
     audio,
     mic,
     sharing,
+    screenAudio,
+    hasScreenAudio,
+    toggleScreenAudio,
     deafened,
     setDeafened,
     error,

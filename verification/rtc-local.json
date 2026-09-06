@@ -1,0 +1,51 @@
+{
+  "base": "http://localhost:3000",
+  "startedAt": "2026-09-06T00:34:03.131Z",
+  "capture": "synthetic-only",
+  "requested": {
+    "width": 1920,
+    "height": 1080,
+    "frameRate": 60
+  },
+  "connectedPeers": 3,
+  "producedVideoFrames": 660,
+  "receivers": [
+    {
+      "audioFrames": 1131,
+      "audioNonzero": 1101,
+      "videoFrames": 0,
+      "width": 0,
+      "height": 0,
+      "videoFirst": 0,
+      "videoLast": 0,
+      "encryptedTracks": 1,
+      "videoFps": 0
+    },
+    {
+      "audioFrames": 1146,
+      "audioNonzero": 1111,
+      "videoFrames": 623,
+      "width": 1920,
+      "height": 1080,
+      "videoFirst": 3947.8212,
+      "videoLast": 14743.0865,
+      "encryptedTracks": 2,
+      "videoFps": 57.6
+    },
+    {
+      "audioFrames": 2292,
+      "audioNonzero": 0,
+      "videoFrames": 0,
+      "width": 0,
+      "height": 0,
+      "videoFirst": 0,
+      "videoLast": 0,
+      "encryptedTracks": 3,
+      "videoFps": 0
+    }
+  ],
+  "serverDisconnect": true,
+  "revokedInviteStatus": 403,
+  "passed": true,
+  "finishedAt": "2026-09-06T00:34:19.372Z"
+}

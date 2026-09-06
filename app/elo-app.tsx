@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
+import { Switch } from '@/components/ui/switch';
 import {
   AudioLines,
   ArrowUpRight,
@@ -110,6 +111,8 @@ export default function EloApp() {
   const [displayName, setDisplayName] = useState('');
   const [roomName, setRoomName] = useState('Sala da galera');
   const [hostKey, setHostKey] = useState('');
+  const [isHost, setIsHost] = useState(false);
+  const [startMicrophone, setStartMicrophone] = useState(true);
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [creating, setCreating] = useState(false);
   const createLock = useRef(false);
@@ -142,9 +145,15 @@ export default function EloApp() {
     fetch('/api/status', { cache: 'no-store' })
       .then((r) => {
         if (!r.ok) throw Error();
-        return r.json() as Promise<{ configured: boolean }>;
+        return r.json() as Promise<{
+          configured: boolean;
+          hostAuthorized: boolean;
+        }>;
       })
-      .then((data) => setConfigured(data.configured))
+      .then((data) => {
+        setConfigured(data.configured);
+        setIsHost(data.hostAuthorized);
+      })
       .catch(() => {
         setConfigured(false);
         call.setError(
@@ -235,6 +244,7 @@ export default function EloApp() {
       setInvite(next);
       setAdmin(result.admin);
       setHostKey('');
+      setIsHost(true);
       history.replaceState(null, '', location.pathname + inviteFragment(next));
       try {
         sessionStorage.setItem(`elo-host-${result.id}`, result.admin);
@@ -242,7 +252,7 @@ export default function EloApp() {
         /* Host control remains available for this session in memory. */
       }
       rememberName();
-      await call.join(next, displayName.trim());
+      await call.join(next, displayName.trim(), startMicrophone);
     } catch (error) {
       call.setError(
         error instanceof Error
@@ -259,7 +269,7 @@ export default function EloApp() {
     if (!invite) return;
     rememberName();
     setNotice('');
-    await call.join(invite, displayName.trim());
+    await call.join(invite, displayName.trim(), startMicrophone);
   }
   function reset() {
     setInvite(null);
@@ -675,27 +685,50 @@ export default function EloApp() {
                       required
                       disabled={busy}
                     />
-                    <label htmlFor="host">Chave do anfitrião</label>
-                    <input
-                      id="host"
-                      type="password"
-                      placeholder="Chave para criar salas"
-                      value={hostKey}
-                      onChange={(e) => setHostKey(e.target.value)}
-                      autoComplete="off"
-                      maxLength={256}
-                      required
-                      disabled={busy}
-                    />
+                    {!isHost && (
+                      <>
+                        <label htmlFor="host">Chave do anfitrião</label>
+                        <input
+                          id="host"
+                          type="password"
+                          placeholder="Chave para criar salas"
+                          value={hostKey}
+                          onChange={(e) => setHostKey(e.target.value)}
+                          autoComplete="off"
+                          maxLength={256}
+                          required
+                          disabled={busy}
+                        />
+                      </>
+                    )}
                   </>
                 )}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 16,
+                    marginTop: 20,
+                  }}
+                >
+                  <label htmlFor="start-microphone" style={{ margin: 0 }}>
+                    Entrar com microfone
+                  </label>
+                  <Switch
+                    id="start-microphone"
+                    checked={startMicrophone}
+                    onCheckedChange={setStartMicrophone}
+                    disabled={busy}
+                  />
+                </div>
                 <button
                   className="primary-button"
                   disabled={
                     busy ||
                     configured !== true ||
                     !displayName.trim() ||
-                    (!invite && (!roomName.trim() || !hostKey))
+                    (!invite && (!roomName.trim() || (!isHost && !hostKey)))
                   }
                 >
                   {busy

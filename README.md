@@ -4,7 +4,7 @@ Aplicativo privado para conversar por voz e compartilhar tela com até 12 amigos
 
 ## Estado da entrega
 
-O aplicativo e o backend estão implementados. A transmissão depende de um projeto LiveKit Cloud ou servidor LiveKit próprio, **ainda não configurado**. O aplicativo mostra esse estado e não simula chamadas. A publicação Sites começa privada, acessível apenas ao proprietário; o acesso de amigos deve ser configurado antes do uso real.
+O Elo está conectado ao projeto LiveKit Cloud elochat. A página foi liberada pelo proprietário; as salas continuam protegidas por convites privados, e só o anfitrião pode criar salas. A conta LiveKit permanece no plano Build, sem contratação de plano pago.
 
 ## Ativação
 
@@ -18,7 +18,7 @@ O aplicativo e o backend estão implementados. A transmissão depende de um proj
 | `LIVEKIT_API_SECRET` | Segredo de API do LiveKit                                                             |
 | `ELO_HOST_KEY`       | Segredo aleatório com pelo menos 32 caracteres, usado pelo anfitrião para criar salas |
 
-Gere a chave do anfitrião com um gerenciador de senhas. Ela não deve ser enviada aos convidados. Nenhuma contratação de serviço, conta LiveKit ou cobrança foi feita nesta entrega.
+Gere a chave do anfitrião com um gerenciador de senhas. Ela não deve ser enviada aos convidados. A conta existente foi conectada; não houve contratação de plano pago. A chave gerada pelo proprietário é armazenada no runtime do Sites como segredo. Após a primeira criação de sala, o anfitrião recebe um cookie assinado, Secure e HttpOnly válido por 7 dias. Trocar ELO_HOST_KEY invalida essas sessões.
 
 3. No Sites, permita o acesso dos amigos pela política de acesso da plataforma. A proteção do convite continua sendo exigida pelo aplicativo. Alterar o site para público exige uma decisão explícita do proprietário.
 4. Abra o Elo por HTTPS no Chrome ou Edge atualizado, informe seu apelido, o nome da sala e a chave do anfitrião. Crie a sala e copie o convite. A outra pessoa abre o link, informa um apelido e entra.
@@ -51,9 +51,9 @@ Node >=22.13 e npm. `npm ci`, `npm run db:local`, `npm run dev`. O estado D1 loc
 
 ## Verificação e pendências
 
-Os testes automatizados usam SQLite real para a persistência e mock do serviço de mídia. Verificam convites, acesso entre salas, permissões dos JWT reais, expiração, revogação, falha do provedor e limites. Não substituem uma chamada real.
+Os testes unitários usam SQLite real para a persistência e mock do serviço de mídia; o teste adicional de transmissão usa o serviço LiveKit real. Verificam convites, acesso entre salas, permissões dos JWT reais, expiração, revogação, falha do provedor e limites. Não substituem uma chamada real.
 
-Antes de considerar pronto para uso: configure o LiveKit, autorize o acesso dos amigos e faça uma chamada entre dois computadores em redes diferentes. Verifique voz nos dois sentidos, mute, escolha de microfone, tela e áudio de aba, reconexão e encerramento pelo anfitrião. A qualidade real de áudio/vídeo e o fluxo de permissões do navegador ainda não foram validados.
+Verificação de transmissão realizada em 06/09/2026: três participantes WebRTC reais conectados ao LiveKit Cloud, com áudio sintético bidirecional e vídeo sintético 1920×1080. O receptor decodificou 623 quadros a aproximadamente 57,6 fps. Um participante com a chave errada não decodificou áudio nem vídeo. Encerramento desconectou todos, e o convite revogado retornou 403. Esses testes exercitam a transmissão real sem capturar microfone ou tela do usuário; o resultado não garante a mesma taxa em todos os computadores ou redes.
 
 A ferramenta WebMCP `open_call_settings` abre somente as configurações. Não liga microfone nem tela. O ambiente de entrega não ofereceu um contexto WebMCP para validar sua execução; não houve verificação em navegador.
 

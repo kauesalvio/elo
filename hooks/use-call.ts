@@ -117,7 +117,7 @@ export function useCall() {
       );
   }, [refreshDevices]);
   const join = useCallback(
-    async (invite: Invite, displayName: string) => {
+    async (invite: Invite, displayName: string, startMicrophone = true) => {
       if (roomRef.current || joinLock.current) return;
       joinLock.current = true;
       setError('');
@@ -260,7 +260,8 @@ export function useCall() {
         setExpiresAt(result.expiresAt);
         sync();
         try {
-          await room.localParticipant.setMicrophoneEnabled(true);
+          if (startMicrophone)
+            await room.localParticipant.setMicrophoneEnabled(true);
           if (attempt !== generation.current) {
             await room.localParticipant.setMicrophoneEnabled(false);
             await room.disconnect(true);

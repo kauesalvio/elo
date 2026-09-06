@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers';
+import { hasHostSession, issueHostCookie } from './host-session';
 import {
   AccessToken,
   RoomServiceClient,
@@ -29,6 +30,12 @@ type RoomRow = {
   revoked: number;
 };
 const config = () => env as unknown as Config;
+export async function hostAuthorized(request: Request) {
+  return hasHostSession(request, config().ELO_HOST_KEY ?? '');
+}
+export async function hostCookie() {
+  return issueHostCookie(requireConfig().ELO_HOST_KEY!);
+}
 export function configured() {
   const c = config();
   return !!(
@@ -93,9 +100,10 @@ export async function createRoom(
   const c = requireConfig();
   await rateLimit(request, 'create', 10, 3600);
   if (
-    typeof body.hostKey !== 'string' ||
-    body.hostKey.length > 256 ||
-    (await hash(body.hostKey)) !== (await hash(c.ELO_HOST_KEY!))
+    !(await hostAuthorized(request)) &&
+    (typeof body.hostKey !== 'string' ||
+      body.hostKey.length > 256 ||
+      (await hash(body.hostKey)) !== (await hash(c.ELO_HOST_KEY!)))
   )
     throw new AppError(
       403,

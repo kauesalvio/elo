@@ -13,7 +13,7 @@ import {
   type RemoteVideoTrack,
   type LocalVideoTrack,
 } from 'livekit-client';
-import E2EEWorker from 'livekit-client/e2ee-worker?worker';
+import e2eeWorkerUrl from 'livekit-client/e2ee-worker?url';
 import { post, type Invite } from '@/lib/invite';
 
 export type Person = {
@@ -146,7 +146,9 @@ export function useCall() {
         });
         if (attempt !== generation.current) return;
         const provider = new ExternalE2EEKeyProvider();
-        worker = new E2EEWorker();
+        // Keep the SDK worker unchanged: SSR defines such as `typeof window`
+        // must not be applied inside the dedicated worker context.
+        worker = new Worker(e2eeWorkerUrl);
         workerRef.current = worker;
         room = new Room({
           encryption: { keyProvider: provider, worker },

@@ -50,6 +50,7 @@
   border-color: var(--border);
 }
 body {
+  --font-retro: var(--font-geist-mono), 'Courier New', monospace;
   margin: 0;
   background: var(--background);
   color: var(--foreground);

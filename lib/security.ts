@@ -11,6 +11,15 @@ export function randomSecret(): string {
     n.toString(16).padStart(2, '0'),
   ).join('');
 }
+export function randomRoomId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
 export async function hash(value: string): Promise<string> {
   const buffer = await crypto.subtle.digest(
     'SHA-256',
@@ -26,7 +35,10 @@ export function secret(value: unknown): string {
   return value;
 }
 export function roomId(value: unknown): string {
-  if (typeof value !== 'string' || !/^[a-f0-9-]{36}$/.test(value))
+  if (
+    typeof value !== 'string' ||
+    !(/^[a-f0-9-]{36}$/.test(value) || /^[A-Za-z0-9_-]{16}$/.test(value))
+  )
     throw new AppError(403, 'Convite inválido ou expirado. Peça um novo link.');
   return value;
 }

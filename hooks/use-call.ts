@@ -9,9 +9,9 @@ import {
   RoomEvent,
   Track,
   type Participant,
-  type RemoteAudioTrack,
-  type RemoteVideoTrack,
-  type LocalVideoTrack,
+  RemoteAudioTrack,
+  RemoteVideoTrack,
+  LocalVideoTrack,
 } from 'livekit-client';
 import e2eeWorkerUrl from 'livekit-client/e2ee-worker?url';
 import { post, type Invite } from '@/lib/invite';
@@ -20,8 +20,6 @@ export type Person = {
   id: string;
   name: string;
   local: boolean;
-  speaking: boolean;
-  mic: boolean;
   quality: string;
 };
 export type Screen = {
@@ -31,7 +29,7 @@ export type Screen = {
   local: boolean;
   track: LocalVideoTrack | RemoteVideoTrack;
 };
-export type ReceivedAudio = { track: RemoteAudioTrack; owner: string; source: 'voice' | 'screen' };
+export type ReceivedAudio = { track: RemoteAudioTrack; owner: string };
 export type Quality = '1080-60' | '1080-30' | '720-30';
 export function useCall() {
   const roomRef = useRef<Room | null>(null);
@@ -47,17 +45,13 @@ export function useCall() {
   const [audio, setAudio] = useState<ReceivedAudio[]>([]);
   const [screenAudio, setScreenAudio] = useState(false);
   const [hasScreenAudio, setHasScreenAudio] = useState(false);
-  const [mic, setMic] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const [deafened, setDeafened] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [controlBusy, setControlBusy] = useState(false);
   const [name, setName] = useState('');
   const [expiresAt, setExpiresAt] = useState(0);
   const [needsAudio, setNeedsAudio] = useState(false);
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  const [deviceId, setDeviceId] = useState('default');
   const active = state !== ConnectionState.Disconnected;
   const leave = useCallback(async () => {
     generation.current++;
@@ -73,10 +67,8 @@ export function useCall() {
     setPeople([]);
     setScreens([]);
     setAudio([]);
-    setMic(false);
     setSharing(false);
     setBusy(false);
-    setDeafened(false);
     setNeedsAudio(false);
     setExpiresAt(0);
     setName('');
@@ -101,27 +93,8 @@ export function useCall() {
     );
     return () => clearTimeout(id);
   }, [active, expiresAt, leave]);
-  const refreshDevices = useCallback(async () => {
-    try {
-      setDevices(
-        (await navigator.mediaDevices.enumerateDevices()).filter(
-          (d) => d.kind === 'audioinput',
-        ),
-      );
-    } catch {
-      /* The device picker remains unavailable without permission. */
-    }
-  }, []);
-  useEffect(() => {
-    navigator.mediaDevices?.addEventListener('devicechange', refreshDevices);
-    return () =>
-      navigator.mediaDevices?.removeEventListener(
-        'devicechange',
-        refreshDevices,
-      );
-  }, [refreshDevices]);
   const join = useCallback(
-    async (invite: Invite, displayName: string, startMicrophone = true) => {
+    async (invite: Invite, displayName: string) => {
       if (roomRef.current || joinLock.current) return;
       joinLock.current = true;
       setError('');
@@ -132,7 +105,7 @@ export function useCall() {
       try {
         if (!window.isSecureContext || !navigator.mediaDevices)
           throw new Error(
-            'Abra o Elo em uma conexão HTTPS para usar o microfone.',
+            'Abra o rapaziadahora em uma conexão HTTPS para compartilhar tela.',
           );
         if (!isE2EESupported())
           throw new Error(
@@ -159,12 +132,6 @@ export function useCall() {
           adaptiveStream: true,
           dynacast: true,
           disconnectOnPageLeave: true,
-          audioCaptureDefaults: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            channelCount: 1,
-          },
           publishDefaults: {
             audioPreset: AudioPresets.musicHighQuality,
             videoCodec: 'vp8',
@@ -186,8 +153,6 @@ export function useCall() {
               id: p.identity,
               name: p.name ?? 'Amigo',
               local: p === currentRoom.localParticipant,
-              speaking: p.isSpeaking,
-              mic: p.isMicrophoneEnabled,
               quality: p.connectionQuality,
             })),
           );
@@ -198,27 +163,29 @@ export function useCall() {
               if (
                 pub.source === Track.Source.ScreenShare &&
                 pub.track &&
-                pub.kind === Track.Kind.Video
+                (pub.track instanceof LocalVideoTrack ||
+                  pub.track instanceof RemoteVideoTrack)
               )
                 screenTracks.push({
                   id: pub.trackSid,
                   owner: p.identity,
                   name: p.name ?? 'Amigo',
                   local: p === currentRoom.localParticipant,
-                  track: pub.track as LocalVideoTrack | RemoteVideoTrack,
+                  track: pub.track,
                 });
               if (
                 p !== currentRoom.localParticipant &&
-                pub.kind === Track.Kind.Audio &&
-                pub.track
+                pub.source === Track.Source.ScreenShareAudio &&
+                pub.track instanceof RemoteAudioTrack
               )
-                audioTracks.push({track: pub.track as RemoteAudioTrack, owner: p.identity, source: pub.source === Track.Source.ScreenShareAudio ? 'screen' : 'voice'});
+                audioTracks.push({ track: pub.track, owner: p.identity });
             }
           setScreens(screenTracks);
           setAudio(audioTracks);
-          setMic(currentRoom.localParticipant.isMicrophoneEnabled);
           setSharing(currentRoom.localParticipant.isScreenShareEnabled);
-          const liveAudio = currentRoom.localParticipant.getTrackPublication(Track.Source.ScreenShareAudio);
+          const liveAudio = currentRoom.localParticipant.getTrackPublication(
+            Track.Source.ScreenShareAudio,
+          );
           setHasScreenAudio(!!liveAudio?.track);
           setScreenAudio(!!liveAudio?.track && !liveAudio.isMuted);
         };
@@ -231,7 +198,6 @@ export function useCall() {
           RoomEvent.TrackUnmuted,
           RoomEvent.LocalTrackPublished,
           RoomEvent.LocalTrackUnpublished,
-          RoomEvent.ActiveSpeakersChanged,
           RoomEvent.ConnectionQualityChanged,
         ])
           room.on(event, sync);
@@ -248,14 +214,14 @@ export function useCall() {
         );
         room.on(RoomEvent.EncryptionError, () => {
           setError(
-            'Falha de criptografia. A chamada foi encerrada para proteger sua conversa.',
+            'Falha de criptografia. A sala foi desconectada para proteger sua transmissão.',
           );
           void leave();
         });
         room.on(RoomEvent.Disconnected, () => {
           if (roomRef.current === currentRoom) {
             void leave();
-            setError('Você saiu da chamada ou a sala foi encerrada.');
+            setError('Você saiu da sala ou a sala foi encerrada.');
           }
         });
         await provider.setKey(invite.key);
@@ -269,22 +235,6 @@ export function useCall() {
         setName(result.name);
         setExpiresAt(result.expiresAt);
         sync();
-        try {
-          if (startMicrophone)
-            await room.localParticipant.setMicrophoneEnabled(true);
-          if (attempt !== generation.current) {
-            await room.localParticipant.setMicrophoneEnabled(false);
-            await room.disconnect(true);
-            return;
-          }
-          await refreshDevices();
-        } catch {
-          if (attempt === generation.current)
-            setError(
-              'Você entrou sem microfone. Permita o acesso nas configurações do navegador e tente ligá-lo.',
-            );
-        }
-        if (attempt !== generation.current) return;
         try {
           await room.startAudio();
         } catch {
@@ -304,7 +254,7 @@ export function useCall() {
           setError(
             err instanceof Error
               ? err.message
-              : 'Não foi possível entrar na chamada.',
+              : 'Não foi possível entrar na sala.',
           );
         }
       } finally {
@@ -312,7 +262,7 @@ export function useCall() {
         if (attempt === generation.current) setBusy(false);
       }
     },
-    [leave, refreshDevices],
+    [leave],
   );
   async function action(fn: (room: Room) => Promise<unknown>) {
     const room = roomRef.current;
@@ -335,21 +285,17 @@ export function useCall() {
       setControlBusy(false);
     }
   }
-  const toggleMic = () =>
+  const toggleScreenAudio = () =>
     action(async (room) => {
-      await room.localParticipant.setMicrophoneEnabled(
-        !room.localParticipant.isMicrophoneEnabled,
-      );
-      await refreshDevices();
+      const track = room.localParticipant.getTrackPublication(
+        Track.Source.ScreenShareAudio,
+      )?.track;
+      if (track) {
+        if (track.isMuted) await track.unmute();
+        else await track.mute();
+        setScreenAudio(!track.isMuted);
+      }
     });
-  const toggleScreenAudio = () => action(async (room) => {
-    const track = room.localParticipant.getTrackPublication(Track.Source.ScreenShareAudio)?.track;
-    if (track) {
-      if (track.isMuted) await track.unmute();
-      else await track.mute();
-      setScreenAudio(!track.isMuted);
-    }
-  });
   const toggleScreen = (quality: Quality) =>
     action(async (room) => {
       if (room.localParticipant.isScreenShareEnabled) {
@@ -391,11 +337,6 @@ export function useCall() {
         throw err;
       }
     });
-  const changeDevice = (id: string) =>
-    action(async (room) => {
-      await room.switchActiveDevice('audioinput', id);
-      setDeviceId(id);
-    });
   const startAudio = () =>
     action(async (room) => {
       await room.startAudio();
@@ -406,13 +347,10 @@ export function useCall() {
     people,
     screens,
     audio,
-    mic,
     sharing,
     screenAudio,
     hasScreenAudio,
     toggleScreenAudio,
-    deafened,
-    setDeafened,
     error,
     setError,
     busy,
@@ -421,13 +359,9 @@ export function useCall() {
     name,
     expiresAt,
     needsAudio,
-    devices,
-    deviceId,
     join,
     leave,
-    toggleMic,
     toggleScreen,
-    changeDevice,
     startAudio,
   };
 }

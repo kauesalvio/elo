@@ -50,6 +50,7 @@ function decodeHex(value: string, expectedBytes: number): string | null {
 }
 
 function compactRoomId(id: string): string {
+  if (/^[A-Za-z0-9_-]{16}$/.test(id)) return id;
   const groups = id.match(uuidPattern);
   if (!groups) throw new Error('Invalid room ID');
   return encodeHex(groups.slice(1).join(''));
@@ -64,9 +65,11 @@ function expandRoomId(value: string): string | null {
 
 export function parseInvite(fragment: string, pathname = ''): Invite | null {
   const params = new URLSearchParams(fragment.replace(/^#/, ''));
-  const shortId = pathname.match(/^\/room\/([A-Za-z0-9_-]{22})\/?$/)?.[1];
+  const shortId = pathname.match(
+    /^\/room\/([A-Za-z0-9_-]{16}|[A-Za-z0-9_-]{22})\/?$/,
+  )?.[1];
   if (shortId) {
-    const id = expandRoomId(shortId);
+    const id = shortId.length === 16 ? shortId : expandRoomId(shortId);
     const invite = decodeHex(params.get('c') ?? '', 32);
     const key = decodeHex(params.get('k') ?? '', 32);
     return id && invite && key ? { id, invite, key } : null;

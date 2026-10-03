@@ -8,6 +8,7 @@ import {
 import {
   AppError,
   hash,
+  randomRoomId,
   randomSecret,
   roomId,
   secret,
@@ -113,7 +114,7 @@ export async function createRoom(
       'Senha de criação inválida. Só o responsável pode criar salas.',
     );
   const name = shortText(body.name, 48);
-  const id = crypto.randomUUID();
+  const id = randomRoomId();
   const invite = randomSecret();
   const admin = randomSecret();
   const expiresAt = Date.now() + 24 * 60 * 60 * 1000;

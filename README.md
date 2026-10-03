@@ -1,5 +1,7 @@
 # Elo
 
+Produção: https://rapaziadahora.online. Veja [o fluxo de evolução e atualização](EVOLUCAO.md) para trabalhar com GitHub, validação e publicação.
+
 Aplicativo privado para conversar por voz e compartilhar tela com até 12 amigos. Interface em português, sem cadastro individual: o anfitrião cria a sala e os amigos entram por convite.
 
 ## Estado da entrega

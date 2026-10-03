@@ -53,6 +53,7 @@ beforeEach(() => {
     LIVEKIT_API_KEY: 'test-api',
     LIVEKIT_API_SECRET: 'test-secret-with-32-characters-minimum',
     ELO_HOST_KEY: 'h'.repeat(64),
+    RAPAZIADAHORA_HOST_PASSWORD: 'test-room-password',
   });
   service.createRoom.mockClear();
   service.deleteRoom.mockReset().mockResolvedValue({});
@@ -69,7 +70,10 @@ function request(body: unknown = {}, origin = 'https://elo.test') {
   });
 }
 async function makeRoom() {
-  return createRoom({ name: 'Turma', hostKey: env.ELO_HOST_KEY }, request());
+  return createRoom(
+    { name: 'Turma', hostKey: env.RAPAZIADAHORA_HOST_PASSWORD },
+    request(),
+  );
 }
 describe('access control and media grants', () => {
   it('fails closed until server settings exist', () => {
@@ -81,6 +85,27 @@ describe('access control and media grants', () => {
     await expect(
       createRoom({ name: 'Turma', hostKey: 'wrong' }, request()),
     ).rejects.toMatchObject({ status: 403 });
+    expect(service.createRoom).not.toHaveBeenCalled();
+  });
+  it('keeps the signing secret separate from the room password', async () => {
+    await expect(
+      createRoom({ name: 'Turma', hostKey: env.ELO_HOST_KEY }, request()),
+    ).rejects.toMatchObject({ status: 403 });
+    const room = await makeRoom();
+    expect(room.id).toBeTruthy();
+    env.ELO_HOST_KEY = 'short';
+    expect(configured()).toBe(false);
+  });
+  it('requires a configured room password and rate limits password attempts', async () => {
+    env.RAPAZIADAHORA_HOST_PASSWORD = '';
+    expect(configured()).toBe(false);
+    env.RAPAZIADAHORA_HOST_PASSWORD = 'test-room-password';
+    for (let i = 0; i < 10; i++) {
+      await expect(
+        createRoom({ name: 'Turma', hostKey: 'wrong' }, request()),
+      ).rejects.toMatchObject({ status: 403 });
+    }
+    await expect(makeRoom()).rejects.toMatchObject({ status: 429 });
     expect(service.createRoom).not.toHaveBeenCalled();
   });
   it('stores only hashes of invite and host secrets; caps participants on the media server', async () => {
@@ -104,7 +129,7 @@ describe('access control and media grants', () => {
     ).rejects.toMatchObject({ status: 403 });
     expect(service.deleteRoom).not.toHaveBeenCalled();
   });
-  it('issues a short-lived JWT scoped to voice and screen only, with a fresh participant identity', async () => {
+  it('issues a short-lived JWT scoped to screen and screen audio only, with a fresh participant identity', async () => {
     const room = await makeRoom();
     const a = await joinRoom({ ...room, name: 'Amigo' }, request()),
       b = await joinRoom({ ...room, name: 'Amigo' }, request());
@@ -120,7 +145,7 @@ describe('access control and media grants', () => {
       canPublish: true,
       canSubscribe: true,
       canPublishData: false,
-      canPublishSources: ['microphone', 'screen_share', 'screen_share_audio'],
+      canPublishSources: ['screen_share', 'screen_share_audio'],
     });
     expect(claims.video?.roomAdmin).toBeUndefined();
     expect(claims.sub).not.toBe(other.sub);

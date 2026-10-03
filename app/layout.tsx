@@ -13,10 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Elo · Sua turma, por perto',
+  title: 'rapaziadahora · Dá o play na sala',
   description:
-    'Salas privadas de voz e compartilhamento de tela para estar com seus amigos.',
+    'Compartilhe sua tela com a rapaziada em salas privadas. Um espaço retrô, com criptografia de ponta a ponta.',
   robots: { index: false, follow: false },
+  icons: { icon: '/favicon.svg' },
 };
 
 export default function RootLayout({

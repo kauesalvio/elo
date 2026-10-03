@@ -1,4 +1,4 @@
-import EloApp from './elo-app';
+import RapaziadahoraApp from './rapaziadahora-app';
 export default function Home() {
-  return <EloApp />;
+  return <RapaziadahoraApp />;
 }

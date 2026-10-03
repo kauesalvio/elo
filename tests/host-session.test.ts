@@ -22,6 +22,10 @@ describe('host session', () => {
     ).toBe(false);
     expect(await hasHostSession(req(cookie), secret + 'changed')).toBe(false);
   });
+  it('does not accept cookies forged with the creation password', async () => {
+    const forged = await issueHostCookie('test-room-password');
+    expect(await hasHostSession(req(forged), secret)).toBe(false);
+  });
   it('expires in seven days', async () => {
     vi.useFakeTimers();
     try {

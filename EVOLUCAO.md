@@ -1,8 +1,8 @@
-# Evolução do Elo
+# Evolução do rapaziadahora
 
 Preparação do repositório em 02/10/2026: 19 testes e TypeScript passaram com Node 26.4.0; o build passou com Node 24.19.0. O primeiro build com Node 26 gerou os arquivos, mas encerrou com falha nativa no Windows. A esteira usa Node 22 em Linux e ainda precisa ser executada no GitHub. O lint encontrou pendências existentes e permanece informativo.
 
-O código deste repositório foi recuperado da entrega original de setembro de 2026, preservando seus quatro commits. O aplicativo publicado está em https://rapaziadahora.online e sua hospedagem é no Sites. O LiveKit Cloud fornece a transmissão de voz e tela; o banco do aplicativo usa D1.
+O código deste repositório foi recuperado da entrega original de setembro de 2026, preservando seus quatro commits. O aplicativo publicado está em https://rapaziadahora.online e sua hospedagem é no Sites. O LiveKit Cloud fornece a transmissão de tela e áudio da tela; o banco do aplicativo usa D1.
 
 ## Fluxo de mudanças
 
@@ -10,7 +10,7 @@ O código deste repositório foi recuperado da entrega original de setembro de 2
 2. Faça a alteração e execute `npm run lint`, `npm run typecheck`, `npm test` e `npm run build`.
 3. Faça commit, envie a branch ao GitHub e abra um pull request.
 4. Confira a execução **Validação** na aba Actions e revise o diff antes de integrar em `main`.
-5. Publique a versão aprovada pelo fluxo do Sites. Confira voz, compartilhamento de tela, convite e encerramento da sala após publicar.
+5. Publique a versão aprovada pelo fluxo do Sites. Confira compartilhamento de tela, áudio da tela, convite, cotas visíveis e encerramento da sala após publicar.
 
 O workflow roda em pushes para `main`, pull requests e execução manual. Tipos, testes e build são obrigatórios. O lint é informativo nesta primeira versão, pois a checagem do código original encontrou erros existentes nos componentes e no aplicativo; eles continuam visíveis no log. Corrija essas pendências e remova `continue-on-error` para torná-lo obrigatório. Os testes usam dados fictícios e mock do serviço de mídia: não precisam das credenciais de produção. A esteira não publica automaticamente no Sites. Integrar em `main` registra uma versão do código, mas não altera o site em produção.
 

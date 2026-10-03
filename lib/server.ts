@@ -20,6 +20,7 @@ type Config = {
   LIVEKIT_API_KEY?: string;
   LIVEKIT_API_SECRET?: string;
   ELO_HOST_KEY?: string;
+  RAPAZIADAHORA_HOST_PASSWORD?: string;
 };
 type RoomRow = {
   id: string;
@@ -42,14 +43,15 @@ export function configured() {
     c.LIVEKIT_URL?.startsWith('wss://') &&
     c.LIVEKIT_API_KEY &&
     c.LIVEKIT_API_SECRET &&
-    (c.ELO_HOST_KEY?.length ?? 0) >= 32
+    (c.ELO_HOST_KEY?.length ?? 0) >= 32 &&
+    (c.RAPAZIADAHORA_HOST_PASSWORD?.length ?? 0) >= 10
   );
 }
 function requireConfig() {
   if (!configured())
     throw new AppError(
       503,
-      'O Elo ainda está sendo preparado. O responsável precisa conectar o serviço de chamadas.',
+      'O rapaziadahora ainda está sendo preparado. O responsável precisa conectar o serviço de tela.',
     );
   return config();
 }
@@ -103,11 +105,12 @@ export async function createRoom(
     !(await hostAuthorized(request)) &&
     (typeof body.hostKey !== 'string' ||
       body.hostKey.length > 256 ||
-      (await hash(body.hostKey)) !== (await hash(c.ELO_HOST_KEY!)))
+      (await hash(body.hostKey)) !==
+        (await hash(c.RAPAZIADAHORA_HOST_PASSWORD!)))
   )
     throw new AppError(
       403,
-      'Chave do anfitrião inválida. Só o responsável pode criar salas.',
+      'Senha de criação inválida. Só o responsável pode criar salas.',
     );
   const name = shortText(body.name, 48);
   const id = crypto.randomUUID();
@@ -177,7 +180,6 @@ export async function joinRoom(
     canPublishData: false,
     canUpdateOwnMetadata: false,
     canPublishSources: [
-      TrackSource.MICROPHONE,
       TrackSource.SCREEN_SHARE,
       TrackSource.SCREEN_SHARE_AUDIO,
     ],

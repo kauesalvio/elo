@@ -6,7 +6,7 @@ export function middleware() {
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set(
     'Permissions-Policy',
-    'camera=(), microphone=(self), display-capture=(self)',
+    'camera=(), microphone=(), display-capture=(self)',
   );
   response.headers.set(
     'Content-Security-Policy',

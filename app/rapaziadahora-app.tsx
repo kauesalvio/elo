@@ -44,7 +44,7 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 import { useCall, type Screen, type Quality } from '@/hooks/use-call';
-import { inviteFragment, parseInvite, post, type Invite } from '@/lib/invite';
+import { inviteUrl, parseInvite, post, type Invite } from '@/lib/invite';
 import { randomSecret } from '@/lib/security';
 import type { RemoteAudioTrack } from 'livekit-client';
 
@@ -189,9 +189,9 @@ export default function RapaziadahoraApp() {
   const [notice, setNotice] = useState('');
   useEffect(() => {
     const load = () => {
-      const parsed = parseInvite(location.hash);
+      const parsed = parseInvite(location.hash, location.pathname);
       setInvite(parsed);
-      if (location.hash && !parsed)
+      if ((location.hash || location.pathname.startsWith('/room/')) && !parsed)
         call.setError(
           'Este convite está incompleto. Peça o link completo ao anfitrião.',
         );
@@ -308,7 +308,7 @@ export default function RapaziadahoraApp() {
       setAdmin(result.admin);
       setHostKey('');
       setIsHost(true);
-      history.replaceState(null, '', location.pathname + inviteFragment(next));
+      history.replaceState(null, '', inviteUrl(next));
       try {
         sessionStorage.setItem(`elo-host-${result.id}`, result.admin);
       } catch {
@@ -337,7 +337,7 @@ export default function RapaziadahoraApp() {
   function reset() {
     setInvite(null);
     setAdmin('');
-    history.replaceState(null, '', location.pathname);
+    history.replaceState(null, '', '/');
     call.setError('');
     setNotice('');
   }
@@ -345,11 +345,11 @@ export default function RapaziadahoraApp() {
     event.preventDefault();
     try {
       const url = new URL(paste);
-      const value = parseInvite(url.hash);
+      const value = parseInvite(url.hash, url.pathname);
       if (url.origin !== location.origin || !value) throw Error();
       setInvite(value);
       setAdmin('');
-      history.replaceState(null, '', location.pathname + inviteFragment(value));
+      history.replaceState(null, '', inviteUrl(value));
       setDialog(null);
       setPaste('');
       call.setError('');
@@ -358,9 +358,7 @@ export default function RapaziadahoraApp() {
     }
   }
   function link() {
-    return invite
-      ? location.origin + location.pathname + inviteFragment(invite)
-      : '';
+    return invite ? location.origin + inviteUrl(invite) : '';
   }
   async function copy() {
     try {
@@ -929,7 +927,7 @@ export default function RapaziadahoraApp() {
                 type="url"
                 value={paste}
                 onChange={(e) => setPaste(e.target.value)}
-                placeholder="https://rapaziadahora.online/#r=..."
+                placeholder="https://rapaziadahora.online/room/...#c=...&k=..."
                 required
               />
               <button className="primary-button">
